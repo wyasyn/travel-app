@@ -1,0 +1,247 @@
+
+generator client {
+  provider = "prisma-client"
+  output   = "../generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+model User {
+  id                  String                @id
+  name                String
+  email               String
+  emailVerified       Boolean               @default(false)
+  image               String?
+  role                String?               @default("user")
+  banned              Boolean               @default(false)
+  banReason           String?
+  banExpires          DateTime?
+  createdAt           DateTime              @default(now())
+  updatedAt           DateTime              @updatedAt
+  sessions            Session[]
+  accounts            Account[]
+  favorites           FavoriteDestination[]
+  createdDestinations Destination[]         @relation("DestinationCreatedBy")
+  updatedDestinations Destination[]         @relation("DestinationUpdatedBy")
+  likes               DestinationLike[]
+  reviews             DestinationReview[]
+  views               DestinationView[]
+
+  @@unique([email])
+  @@map("user")
+}
+
+model Session {
+  id             String   @id
+  expiresAt      DateTime
+  token          String
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+  ipAddress      String?
+  userAgent      String?
+  impersonatedBy String?
+  userId         String
+  user           User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([token])
+  @@index([userId])
+  @@map("session")
+}
+
+model Account {
+  id                    String    @id
+  accountId             String
+  providerId            String
+  userId                String
+  user                  User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  accessToken           String?
+  refreshToken          String?
+  idToken               String?
+  accessTokenExpiresAt  DateTime?
+  refreshTokenExpiresAt DateTime?
+  scope                 String?
+  password              String?
+  createdAt             DateTime  @default(now())
+  updatedAt             DateTime  @updatedAt
+
+  @@index([userId])
+  @@map("account")
+}
+
+model Verification {
+  id         String   @id
+  identifier String
+  value      String
+  expiresAt  DateTime
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  @@index([identifier])
+  @@map("verification")
+}
+
+enum PackageType {
+  ALL
+  FLIGHT
+  HOTEL
+  EXPERIENCE
+}
+
+enum ImageType {
+  HERO
+  GALLERY
+  THUMBNAIL
+}
+
+enum DestinationStatus {
+  DRAFT
+  PUBLISHED
+  ARCHIVED
+}
+
+model Destination {
+  id               String                @id @default(cuid())
+  name             String
+  slug             String                @unique
+  tagline          String?
+  country          String                @default("Uganda")
+  region           String
+  district         String?
+  shortLocation    String
+  description      String
+  heroImageUrl     String
+  coverImageUrl    String?
+  latitude         Decimal?              @db.Decimal(9, 6)
+  longitude        Decimal?              @db.Decimal(9, 6)
+  durationHoursMin Int?
+  durationHoursMax Int?
+  distanceKm       Float?
+  averageRating    Decimal               @default(0) @db.Decimal(3, 2)
+  reviewCount      Int                   @default(0)
+  isFeatured       Boolean               @default(false)
+  isPopular        Boolean               @default(false)
+  status           DestinationStatus     @default(DRAFT)
+  createdById      String?
+  updatedById      String?
+  createdAt        DateTime              @default(now())
+  updatedAt        DateTime              @updatedAt
+  galleryImages    DestinationImage[]
+  packages         TravelPackage[]
+  itineraryStops   DestinationRouteStop[]
+  favorites        FavoriteDestination[]
+  createdBy        User?                 @relation("DestinationCreatedBy", fields: [createdById], references: [id], onDelete: SetNull)
+  updatedBy        User?                 @relation("DestinationUpdatedBy", fields: [updatedById], references: [id], onDelete: SetNull)
+  likes            DestinationLike[]
+  reviews          DestinationReview[]
+  views            DestinationView[]
+
+  @@index([country, region])
+  @@index([status, isFeatured, isPopular])
+  @@map("destination")
+}
+
+model DestinationImage {
+  id            String      @id @default(cuid())
+  destinationId String
+  destination   Destination @relation(fields: [destinationId], references: [id], onDelete: Cascade)
+  imageUrl      String
+  altText       String?
+  type          ImageType   @default(GALLERY)
+  sortOrder     Int         @default(0)
+  createdAt     DateTime    @default(now())
+
+  @@index([destinationId, type, sortOrder])
+  @@map("destination_image")
+}
+
+model TravelPackage {
+  id            String      @id @default(cuid())
+  destinationId String
+  destination   Destination @relation(fields: [destinationId], references: [id], onDelete: Cascade)
+  type          PackageType @default(EXPERIENCE)
+  title         String
+  summary       String?
+  priceFrom     Decimal?    @db.Decimal(12, 2)
+  currency      String      @default("UGX")
+  durationDays  Int?
+  durationNights Int?
+  includes      String[]
+  isActive      Boolean     @default(true)
+  createdAt     DateTime    @default(now())
+  updatedAt     DateTime    @updatedAt
+
+  @@index([destinationId, type, isActive])
+  @@map("travel_package")
+}
+
+model DestinationRouteStop {
+  id            String      @id @default(cuid())
+  destinationId String
+  destination   Destination @relation(fields: [destinationId], references: [id], onDelete: Cascade)
+  stopOrder     Int
+  title         String
+  description   String?
+  createdAt     DateTime    @default(now())
+
+  @@unique([destinationId, stopOrder])
+  @@map("destination_route_stop")
+}
+
+model FavoriteDestination {
+  id            String      @id @default(cuid())
+  userId        String
+  destinationId String
+  createdAt     DateTime    @default(now())
+  user          User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+  destination   Destination @relation(fields: [destinationId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, destinationId])
+  @@index([destinationId])
+  @@map("favorite_destination")
+}
+
+model DestinationLike {
+  id            String      @id @default(cuid())
+  userId        String
+  destinationId String
+  createdAt     DateTime    @default(now())
+  user          User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+  destination   Destination @relation(fields: [destinationId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, destinationId])
+  @@index([destinationId])
+  @@map("destination_like")
+}
+
+model DestinationReview {
+  id            String      @id @default(cuid())
+  userId        String
+  destinationId String
+  rating        Int
+  title         String?
+  comment       String?
+  isPublished   Boolean     @default(true)
+  createdAt     DateTime    @default(now())
+  updatedAt     DateTime    @updatedAt
+  user          User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+  destination   Destination @relation(fields: [destinationId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, destinationId])
+  @@index([destinationId, rating])
+  @@map("destination_review")
+}
+
+model DestinationView {
+  id            String      @id @default(cuid())
+  destinationId String
+  userId        String?
+  viewedAt      DateTime    @default(now())
+  destination   Destination @relation(fields: [destinationId], references: [id], onDelete: Cascade)
+  user          User?       @relation(fields: [userId], references: [id], onDelete: SetNull)
+
+  @@index([destinationId, viewedAt])
+  @@index([userId, viewedAt])
+  @@map("destination_view")
+}
