@@ -1,0 +1,15 @@
+{
+  "name": "travel-app",
+  "private": true,
+  "scripts": {
+    "dev:web": "pnpm --filter web dev",
+    "dev:api": "pnpm --filter api start:dev",
+    "dev:mobile": "pnpm --filter mobile start",
+    "dev": "pnpm -r --parallel --filter ./apps/* run dev",
+    "build": "pnpm -r build",
+    "lint": "pnpm -r lint"
+  },
+  "author": "",
+  "license": "ISC",
+  "packageManager": "pnpm@10.32.1"
+}
